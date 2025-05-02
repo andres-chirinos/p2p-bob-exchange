@@ -1,0 +1,193 @@
+name: ETL Pipeline
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  #push:
+  #  branches:
+  #    - main
+
+jobs:
+  extract:
+    name: Extract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Read Config
+        run: |
+          python -c """
+          import yaml, datetime
+
+          # Config variables
+          def flatten_config(prefix, config):
+            for key, value in config.items():
+              if isinstance(value, dict):
+                flatten_config(f'{prefix}{key.upper()}_', value)
+              else:
+                print(f'{prefix}{key.upper()}={value}')
+
+          with open('config.yml') as f:
+            config = yaml.safe_load(f)
+
+          flatten_config('', config)
+
+          # Runtime variables
+          timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
+          print(f'TIMESTAMP={timestamp}')
+          """ >> $GITHUB_ENV
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install papermill pandas ipykernel
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
+
+      - name: Run ETL Notebook
+        run: |
+          papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python
+
+      - name: Upload Extract Notebook
+        uses: actions/upload-artifact@v4
+        with:
+          name: extract_notebook
+          path: output/01_extract_out.ipynb
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+
+      - name: Upload raw data
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-data
+          path: data/raw-data.csv
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
+
+      - name: Upload to Google Drive
+        uses: willo32/google-drive-upload-action@v1
+        with:
+          target: data/raw-data.csv
+          credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
+          parent_folder_id: ${{ env.DRIVE_FOLDER_ID }}
+          name: raw-data_${{ env.TIMESTAMP }}.csv
+
+  transform:
+    name: Transform
+    needs: extract
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download raw data
+        uses: actions/download-artifact@v4
+        with:
+          name: raw-data
+          path: ./data/
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install papermill ipykernel
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
+
+      - name: Run Transform Notebook
+        run: |
+          papermill notebooks/02_transform.ipynb output/02_transform_out.ipynb --kernel python
+
+      - name: Upload Transform Notebook
+        uses: actions/upload-artifact@v4
+        with:
+          name: transform_notebook
+          path: output/02_transform_out.ipynb
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+
+      - name: Upload clean data
+        uses: actions/upload-artifact@v4
+        with:
+          name: clean-data
+          path: ./data/clean-data.csv
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
+
+  load:
+    name: Load
+    needs: transform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Download clean data
+        uses: actions/download-artifact@v4
+        with:
+          name: clean-data
+          path: ./data/
+
+      #- name: Set up Python
+      #  uses: actions/setup-python@v4
+      #  with:
+      #    python-version: "3.8"
+
+      #- name: Install dependencies
+      #  run: |
+      #    python -m pip install --upgrade pip
+      #    pip install papermill ipykernel great_expectations
+      #    python -m ipykernel install --user --name python3 --display-name "Python 3"
+
+      #- name: Run Load Notebook
+      #  run: |
+      #    papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python
+
+      #- name: Upload Load Notebook
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: load_notebook
+      #    path: output/03_load_out.ipynb
+      #    retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+
+      #- name: Run Data Quality Checks
+      #  run: |
+      #    great_expectations checkpoint run -n etl_checkpoint --fail-fast
+
+      #- name: Upload Data Quality Report
+      #  uses: actions/upload-artifact@v4
+      #  with:
+      #    name: data_quality_report
+      #    path: great_expectations/uncommitted/validations/
+      #    retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+
+      - name: Push to Kaggle
+        uses: jaimevalero/push-kaggle-dataset@v3.2
+        env:
+          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+        with:
+          id: ${{ env.KAGGLE_DATASET_ID }}
+          title: ${{ env.PROJECT_NAME }}
+          description: ${{ env.DESCRIPTION }}
+          is_public: ${{ env.KAGGLE_IS_PUBLIC }}
+          files: |
+            "./data/*.csv"
+            "./data/*.parquet"
+
+  report:
+    name: Create Failure Issue
+    needs: [extract, transform, load]
+    if: ${{ failure() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open Issue on Failure
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "ETL Pipeline Failure"
+          content-filepath: https://raw.githubusercontent.com/andres-chirinos/github_actions_etl_template/refs/heads/main/.github/ISSUE_TEMPLATE/etl_failure.md
