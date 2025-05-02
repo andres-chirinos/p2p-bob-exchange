@@ -4,9 +4,9 @@ on:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
-  #push:
-  #  branches:
-  #    - main
+  push:
+    branches:
+      - main
 
 jobs:
   extract:
@@ -37,7 +37,11 @@ jobs:
           # Runtime variables
           timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
           print(f'TIMESTAMP={timestamp}')
+
           """ >> $GITHUB_ENV
+
+      - name: Set Terminal ENV
+        run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v4
