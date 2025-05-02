@@ -1,7 +1,7 @@
-project_name: github_actions_etl_template
-description: Template for ETL processes using GitHub Actions
+project_name: p2p-bob-exchange
+description: p2p-bob-exchange
 author: Andres Chirinos
-created_date: 2025-04-28
+created_date: 2025-05-01
 version: 1.0.0
 
 github_actions:
@@ -12,8 +12,8 @@ github_actions:
       retention_days: 14
 
 drive:
-  folder_id: "1J-Il-mSrw08ie3BWVQMZYbLforl1UH-B"
+  folder_id: "1q9XHo4nUIawftnjeLVfSBbEM5r9q3qjn"
 
 kaggle:
-  dataset_id: "andreschirinos/github-actions-etl-template"
+  dataset_id: "andreschirinos/p2p-bob-exchange"
   is_public: true
