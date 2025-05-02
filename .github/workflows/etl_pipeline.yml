@@ -173,7 +173,7 @@ jobs:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         with:
-          id: ${{ env.KAGGLE_DATASET_ID }}
+          #id: ${{ env.KAGGLE_DATASET_ID }}
           title: ${{ env.PROJECT_NAME }}
           description: ${{ env.DESCRIPTION }}
           is_public: ${{ env.KAGGLE_IS_PUBLIC }}
