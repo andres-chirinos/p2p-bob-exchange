@@ -56,6 +56,7 @@ jobs:
           papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python
 
       - name: Upload Extract Notebook
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: extract_notebook
@@ -107,6 +108,7 @@ jobs:
           papermill notebooks/02_transform.ipynb output/02_transform_out.ipynb --kernel python
 
       - name: Upload Transform Notebook
+        if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
           name: transform_notebook
@@ -176,7 +178,7 @@ jobs:
           #id: ${{ env.KAGGLE_DATASET_ID }}
           title: ${{ env.PROJECT_NAME }}
           description: ${{ env.DESCRIPTION }}
-          is_public: ${{ env.KAGGLE_IS_PUBLIC }}
+          #is_public: ${{ env.KAGGLE_IS_PUBLIC }}
           files: |
             "./data/*.csv"
             "./data/*.parquet"
@@ -187,6 +189,14 @@ jobs:
     if: ${{ failure() }}
     runs-on: ubuntu-latest
     steps:
+
+      - name: Upload Notebook Logs
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs_notebooks
+          path: output/*
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+
       - name: Open Issue on Failure
         uses: peter-evans/create-issue-from-file@v5
         with:
