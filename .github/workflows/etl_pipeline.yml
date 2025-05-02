@@ -43,6 +43,11 @@ jobs:
       - name: Set Terminal ENV
         run: echo "PYTHONPATH=$PYTHONPATH:$(pwd)" >> $GITHUB_ENV
 
+      - name: Show Directory Tree
+        run: |
+          apt-get update && apt-get install -y tree
+          tree -L 3
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
