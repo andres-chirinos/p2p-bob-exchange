@@ -117,7 +117,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clean-data
-          path: ./data/clean-data.csv
+          path: ./data/clean-data.parquet
           retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
 
   load:
