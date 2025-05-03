@@ -56,16 +56,17 @@ jobs:
           papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python
 
       - name: Upload raw data
+        id: upload-raw-data-step
         uses: actions/upload-artifact@v4
         with:
           name: raw-data
-          path: data/*.csv
+          path: data/*
           retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
 
       - name: Upload to Google Drive
         uses: willo32/google-drive-upload-action@v1
         with:
-          target: data/*.csv
+          target: steps.upload-raw-data-step.outputs.artifact-url
           credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
           parent_folder_id: ${{ env.DRIVE_FOLDER_ID }}
           name: raw-data_${{ env.TIMESTAMP }}.csv
