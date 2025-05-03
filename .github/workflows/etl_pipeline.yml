@@ -165,8 +165,8 @@ jobs:
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
         with:
           #id: ${{ env.KAGGLE_DATASET_ID }}
-          title: ${{ env.PROJECT_NAME }}
-          description: ${{ env.DESCRIPTION }}
+          #title: ${{ env.PROJECT_NAME }}
+          #description: ${{ env.DESCRIPTION }}
           #is_public: ${{ env.KAGGLE_IS_PUBLIC }}
           files: |
             "./data/*.csv"
