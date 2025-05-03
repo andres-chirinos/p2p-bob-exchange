@@ -55,25 +55,17 @@ jobs:
         run: |
           papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python
 
-      - name: Upload Extract Notebook
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: extract_notebook
-          path: output/01_extract_out.ipynb
-          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
-
       - name: Upload raw data
         uses: actions/upload-artifact@v4
         with:
           name: raw-data
-          path: data/raw-data.csv
+          path: data/*.csv
           retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
 
       - name: Upload to Google Drive
         uses: willo32/google-drive-upload-action@v1
         with:
-          target: data/raw-data.csv
+          target: data/*.csv
           credentials: ${{ secrets.GDRIVE_SERVICE_ACCOUNT }}
           parent_folder_id: ${{ env.DRIVE_FOLDER_ID }}
           name: raw-data_${{ env.TIMESTAMP }}.csv
@@ -107,19 +99,11 @@ jobs:
         run: |
           papermill notebooks/02_transform.ipynb output/02_transform_out.ipynb --kernel python
 
-      - name: Upload Transform Notebook
-        if: ${{ failure() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: transform_notebook
-          path: output/02_transform_out.ipynb
-          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
-
       - name: Upload clean data
         uses: actions/upload-artifact@v4
         with:
           name: clean-data
-          path: ./data/clean-data.parquet
+          path: ./data/*
           retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
 
   load:
