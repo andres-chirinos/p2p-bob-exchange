@@ -110,6 +110,12 @@ kaggle:
       title: Advertiser Table
       format: format
       encoding: utf-8
+    - path: "advice.parquet"
+      description: "Advice data"
+      name: advice
+    - path: "trade_methods.parquet"
+      description: "Trade methods data"
+      name: trade_methods
   keywords: *keywords
   name: "p2p-bob-exchange"
   homepage: "https://sociest.org"
