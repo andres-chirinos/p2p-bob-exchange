@@ -1,8 +1,7 @@
 title: &title Peer-to-Peer Boliviano (BOB) Exchange Data
 subtitle: &subtitle Github Actions ETL Pipeline
 description: &description |
-  This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exchange Data. The data is collected from various sources and transformed into a clean format for analysis. 
-  The pipeline includes data extraction, transformation, and loading processes, along with data quality checks.
+  This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exchange Data. The data is collected from various sources and transformed into a clean format for analysis. The pipeline includes data extraction, transformation, and loading processes, along with data quality checks.
 keywords: &keywords
   - p2p
   - exchange
