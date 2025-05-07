@@ -1,3 +1,3 @@
-# ${{ REPO_NAME }}
+# Peer-to-Peer Boliviano (BOB) Exchange Data
 
-[![ETL Pipeline](https://github.com/${{ REPO_OWNER }}/${{ REPO_NAME }}/actions/workflows/etl_pipeline.yml/badge.svg)](https://github.com/${{ REPO_OWNER }}/${{ REPO_NAME }}/actions/workflows/etl_pipeline.yml)
+https://www.kaggle.com/datasets/andreschirinos/p2p-bob-exchange
