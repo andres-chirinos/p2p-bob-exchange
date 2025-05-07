@@ -1,8 +1,30 @@
-project_name: p2p-bob-exchange
-description: p2p-bob-exchange
+title: &title Peer-to-Peer Boliviano (BOB) Exchange Data
+subtitle: &subtitle Github Actions ETL Pipeline
+description: &description |
+  This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exchange Data. The data is collected from various sources and transformed into a clean format for analysis. 
+  The pipeline includes data extraction, transformation, and loading processes, along with data quality checks.
+keywords: &keywords
+  - p2p
+  - exchange
+  - data
+  - pipeline
+  - etl
+  - bob
+  - bolivia
+  - cryptocurrency
+  - bitcoin
+  - blockchain
 author: Andres Chirinos
 created_date: 2025-05-01
 version: 1.0.0
+
+data_dir: data
+output_dir: output
+
+github_repo:
+  owner: andreschirinos
+  name: p2p-bob-exchange
+  description: *description
 
 github_actions:
   artifact:
@@ -12,8 +34,91 @@ github_actions:
       retention_days: 14
 
 drive:
+  #target:
+  #credentials: "drive_credentials.json"
   folder_id: "1q9XHo4nUIawftnjeLVfSBbEM5r9q3qjn"
+  #name: "my-awesome-dataset"
+  #child_folder: "data"
+  #owner: "timoboz"
 
 kaggle:
-  dataset_id: "andreschirinos/p2p-bob-exchange"
-  is_public: true
+  title: *title
+  subtitle: *subtitle
+  description: *description
+  id: "andreschirinos/p2p-bob-exchange"
+  #id_no: 12345
+  licenses:
+    - name: "CC0-1.0"
+  resources:
+    - path: "advertiser.parquet"
+      description: "Advertiser data from the BOB exchange"
+      schema:
+        fields:
+          - name: "advertiser_userno"
+            order: 0
+            description: "Unique identifier for the advertiser"
+            type: "string"
+          - name: "advertiser_nickname"
+            order: 1
+            description: "Nickname of the advertiser"
+            type: "string"
+          - name: "advertiser_monthordercount"
+            order: 2
+            description: "Number of orders placed by the advertiser in the last month"
+            type: "number"
+          - name: "advertiser_monthfinishrate"
+            order: 3
+            description: "Finish rate of the advertiser in the last month"
+            type: "number"
+          - name: "advertiser_positiverate"
+            order: 4
+            description: "Positive rate of the advertiser"
+            type: "number"
+          - name: "advertiser_usertype"
+            order: 5
+            description: "Type of the advertiser (e.g., user, merchant)"
+            type: "string"
+          - name: "advertiser_usergrade"
+            order: 6
+            description: "Grade of the advertiser"
+            type: "string"
+          - name: "advertiser_u seridentity"
+            order: 7
+            description: "Identity of the advertiser (e.g., MASS_MERCHANT, BLOCK_MERCHANT)"
+            type: "string"
+          - name: "advertiser_viplevel"
+            order: 8
+            description: "VIP level of the advertiser"
+            type: "number"
+          - name: "advertiser_isblocked"
+            order: 9
+            description: "Indicates if the advertiser is blocked"
+            type: "boolean"
+          - name: "advertiser_activetimeinsecond"
+            order: 10
+            description: "Active time of the advertiser in seconds"
+            type: "number"
+          - name: "timestamp"
+            order: 11
+            description: "Timestamp of the data collection"
+            type: "datetime"
+          - name: "source"
+            order: 12
+            description: "Source of the data (e.g, binance)"
+            type: "string"
+      name: advertiser
+      profile: tabular-data-resource
+      title: Advertiser Table
+      format: format
+      encoding: utf-8
+  keywords: *keywords
+  name: "p2p-bob-exchange"
+  homepage: "https://sociest.org"
+  version: "1.0.0"
+  contributors:
+    - "title": "Andres Chirinos"
+      "role": "author"
+  licenses:
+    - name: "CC0-1.0"
+      title: "CC0 1.0"
+      path: "https://creativecommons.org/publicdomain/zero/1.0/"

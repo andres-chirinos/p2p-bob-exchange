@@ -1,0 +1,9 @@
+*.ipynb
+*.py
+__pycache__/
+.DS_Store
+tmp/
+logs/
+README.md
+.gitignore
+.gitkeep

@@ -1,5 +1,5 @@
 import pandas as pd
-import requests
+import requests, os
 
 
 def get_binance_data(

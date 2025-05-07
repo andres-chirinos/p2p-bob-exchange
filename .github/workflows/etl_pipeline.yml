@@ -2,7 +2,7 @@ name: ETL Pipeline
 
 on:
   schedule:
-    - cron: "*/5 * * * *"
+    - cron: "*/15 * * * *"
   workflow_dispatch:
   push:
     branches:
@@ -53,7 +53,15 @@ jobs:
 
       - name: Run ETL Notebook
         run: |
-          papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python
+          papermill notebooks/01_extract.ipynb output/01_extract_out.ipynb --kernel python --parameters_file config.yml
+
+      - name: Upload Extract Notebook
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: extract_notebook_logs
+          path: output/*.ipynb
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
 
       - name: Upload raw data
         id: upload-raw-data-step
@@ -102,7 +110,15 @@ jobs:
 
       - name: Run Transform Notebook
         run: |
-          papermill notebooks/02_transform.ipynb output/02_transform_out.ipynb --kernel python
+          papermill notebooks/02_transform.ipynb output/02_transform_out.ipynb --kernel python --parameters_file config.yml
+
+      - name: Upload Transform Notebook
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: transform_notebook_logs
+          path: output/*.ipynb
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
 
       - name: Upload clean data
         uses: actions/upload-artifact@v4
@@ -125,27 +141,28 @@ jobs:
           name: clean-data
           path: ./data/
 
-      #- name: Set up Python
-      #  uses: actions/setup-python@v4
-      #  with:
-      #    python-version: "3.8"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
 
-      #- name: Install dependencies
-      #  run: |
-      #    python -m pip install --upgrade pip
-      #    pip install papermill ipykernel great_expectations
-      #    python -m ipykernel install --user --name python3 --display-name "Python 3"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install papermill ipykernel great_expectations
+          python -m ipykernel install --user --name python3 --display-name "Python 3"
 
-      #- name: Run Load Notebook
-      #  run: |
-      #    papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python
+      - name: Run Load Notebook
+        run: |
+          papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python --parameters_file config.yml
 
-      #- name: Upload Load Notebook
-      #  uses: actions/upload-artifact@v4
-      #  with:
-      #    name: load_notebook
-      #    path: output/03_load_out.ipynb
-      #    retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
+      - name: Upload Load Notebook
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: load_notebook_logs
+          path: output/*.ipynb
+          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
 
       #- name: Run Data Quality Checks
       #  run: |
@@ -158,36 +175,28 @@ jobs:
       #    path: great_expectations/uncommitted/validations/
       #    retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
 
-      - name: Push to Kaggle
-        uses: jaimevalero/push-kaggle-dataset@v3.2
-        env:
-          KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-          KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
-        with:
-          #id: ${{ env.KAGGLE_DATASET_ID }}
-          #title: ${{ env.PROJECT_NAME }}
-          #description: ${{ env.DESCRIPTION }}
-          #is_public: ${{ env.KAGGLE_IS_PUBLIC }}
-          files: |
-            "./data/*.csv"
-            "./data/*.parquet"
+      #- name: Push to Kaggle
+      #  uses: jaimevalero/push-kaggle-dataset@v3.2
+      #  env:
+      #    KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      #    KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      #  with:
+      #    #id: ${{ env.KAGGLE_DATASET_ID }}
+      #    #title: ${{ env.PROJECT_NAME }}
+      #    #description: ${{ env.DESCRIPTION }}
+      #    #is_public: ${{ env.KAGGLE_IS_PUBLIC }}
+      #    files: |
+      #      "./data/*.csv"
+      #      "./data/*.parquet"
 
-  report:
-    name: Create Failure Issue
-    needs: [extract, transform, load]
-    if: ${{ failure() }}
-    runs-on: ubuntu-latest
-    steps:
-
-      - name: Upload Notebook Logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: logs_notebooks
-          path: output/*
-          retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_LOGS_RETENTION_DAYS }}
-
-      - name: Open Issue on Failure
-        uses: peter-evans/create-issue-from-file@v5
-        with:
-          title: "ETL Pipeline Failure"
-          content-filepath: https://raw.githubusercontent.com/andres-chirinos/github_actions_etl_template/refs/heads/main/.github/ISSUE_TEMPLATE/etl_failure.md
+  #report:
+  #  name: Create Failure Issue
+  #  needs: [extract, transform, load]
+  #  if: ${{ failure() }}
+  #  runs-on: ubuntu-latest
+  #  steps:
+  #    - name: Open Issue on Failure
+  #      uses: peter-evans/create-issue-from-file@v5
+  #      with:
+  #        title: "ETL Pipeline Failure"
+  #        content-filepath: https://raw.githubusercontent.com/andres-chirinos/github_actions_etl_template/refs/heads/main/.github/ISSUE_TEMPLATE/etl_failure.md
