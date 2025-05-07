@@ -150,7 +150,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install papermill ipykernel great_expectations
           python -m ipykernel install --user --name python3 --display-name "Python 3"
-
+      
+      - name: Configure Kaggle credentials
+        run: |
+          mkdir -p ~/.config/kaggle
+            echo "{\"username\": \"${{ secrets.KAGGLE_USERNAME }}\", \"key\": \"${{ secrets.KAGGLE_KEY }}\"}" > ~/.config/kaggle/kaggle.json
+          chmod 600 ~/.config/kaggle/kaggle.json
+      
       - name: Run Load Notebook
         run: |
           papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python --parameters_file config.yml
