@@ -18,27 +18,26 @@ jobs:
 
       - name: Read Config
         run: |
-          python -c """
+          python -c "
           import yaml, datetime
 
           # Config variables
           def flatten_config(prefix, config):
-            for key, value in config.items():
-              if isinstance(value, dict):
-                flatten_config(f'{prefix}{key.upper()}_', value)
-              else:
-                print(f'{prefix}{key.upper()}={value}')
+              for key, value in config.items():
+                  if isinstance(value, dict):
+                      flatten_config(f'{prefix}{key.upper()}_', value)
+                  else:
+                      print(f'{prefix}{key.upper()}={value}')
 
           with open('config.yml') as f:
-            config = yaml.safe_load(f)
+              config = yaml.safe_load(f)
 
           flatten_config('', config)
 
           # Runtime variables
           timestamp = datetime.datetime.now().strftime('%Y%m%d%H%M%S')
           print(f'TIMESTAMP={timestamp}')
-
-          """ >> $GITHUB_ENV
+          " >> $GITHUB_ENV
 
       - name: Set up Python
         uses: actions/setup-python@v4
