@@ -48,10 +48,10 @@ def cargar_datos():
     ruta_archivo = os.path.join(data_dir, "advice.parquet")
 
     # Descargar el dataset (solo si no existe localmente)
-    if not os.path.exists(ruta_archivo):
+    #if not os.path.exists(ruta_archivo):
         # st.info("Descargando dataset desde Kaggle...")
-        comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {data_dir}"
-        os.system(comando)
+    comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {data_dir}"
+    os.system(comando)
         # Descomprimir el archivo si es necesario (si el dataset se descarga como ZIP, por ejemplo)
         # Aquí asumir que ya descarga el parquet directamente
 
