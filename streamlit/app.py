@@ -50,7 +50,7 @@ def cargar_datos():
     # Descargar el dataset (solo si no existe localmente)
     #if not os.path.exists(ruta_archivo):
         # st.info("Descargando dataset desde Kaggle...")
-    comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {data_dir}"
+    comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet --path {data_dir} --force --quiet"
     os.system(comando)
         # Descomprimir el archivo si es necesario (si el dataset se descarga como ZIP, por ejemplo)
         # Aquí asumir que ya descarga el parquet directamente
@@ -119,11 +119,11 @@ time_options = {
     "5 minutos": "5min",
     "15 minutos": "15min",
     "30 minutos": "30min",
-    "1 hora": "1H",
+    "1 hora": "1h",
     "1 dia": "1D",
     "1 semana": "1W",
-    "1 mes": "1M",
-    "1 año": "1Y",
+    "1 mes": "1ME",
+    "1 año": "1YE",
     "Custom": "Custom",
 }
 time_choice = st.sidebar.selectbox(
