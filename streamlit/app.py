@@ -11,6 +11,23 @@ st.markdown(
     "Este dashboard muestra datos financieros que se actualizan periódicamente desde un dataset público en Kaggle."
 )
 
+# === Configuración de Kaggle API ===
+
+# Verificar si el archivo .kaggle.json existe
+kaggle_dir = os.path.expanduser("~/.kaggle")
+kaggle_file = os.path.join(kaggle_dir, "kaggle.json")
+
+if not os.path.exists(kaggle_file):
+    st.warning("El archivo .kaggle.json no existe. Por favor, proporcione sus credenciales de Kaggle.")
+    kaggle_username = st.text_input("Ingrese su nombre de usuario de Kaggle")
+    kaggle_key = st.text_input("Ingrese su clave de API de Kaggle", type="password")
+
+    if kaggle_username and kaggle_key:
+        os.makedirs(kaggle_dir, exist_ok=True)
+        with open(kaggle_file, "w") as f:
+            f.write(f'{{"username":"{kaggle_username}","key":"{kaggle_key}"}}')
+        os.chmod(kaggle_file, 0o600)  # Asegurar permisos correctos
+        st.success("Archivo .kaggle.json creado exitosamente.")
 # === PARTE 1: Cargar dataset desde Kaggle ===
 
 @st.cache_data(ttl=300)
