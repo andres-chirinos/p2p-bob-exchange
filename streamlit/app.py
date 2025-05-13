@@ -4,11 +4,13 @@ import os
 import plotly.graph_objects as go
 
 # Configuración básica del dashboard
-st.set_page_config(page_title="Dashboard Financiero", layout="wide")
+st.set_page_config(
+    page_title="Peer-to-Peer Boliviano (BOB) Exchange Data Dashboard", layout="wide"
+)
 
-st.title("📈 Dashboard Financiero (datos desde Kaggle)")
+st.title("📈 Peer-to-Peer Boliviano (BOB) Exchange Data Dashboard")
 st.markdown(
-    "Este dashboard muestra datos financieros que se actualizan periódicamente desde un dataset público en Kaggle."
+    "This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exchange Data. The data is collected from various sources and transformed into a clean format for analysis. The pipeline includes data extraction, transformation, and loading processes, along with data quality checks. [Repo de Github](https://github.com/andres-chirinos/p2p-bob-exchange) [Kaggle Datasets](https://www.kaggle.com/datasets/andreschirinos/p2p-bob-exchange)"
 )
 
 # === Configuración de Kaggle API ===
@@ -97,7 +99,7 @@ st.sidebar.header("Controles de Visualización")
 trade_types = ["SELL", "BUY"]
 trade_type_selection = st.sidebar.multiselect(
     "Seleccionar Tipo de Transacción",
-    options=trade_types,
+    options=trade_types, 
     default=trade_types,
 )
 if trade_type_selection:
@@ -125,60 +127,76 @@ time_options = {
     "Custom": "Custom",
 }
 time_choice = st.sidebar.selectbox(
-    "Intervalo de tiempo", options=list(time_options.keys())
+    "Intervalo de tiempo", options=list(time_options.keys()), index=2
+)   
+
+# Selección del tipo de gráfico
+chart_type = st.sidebar.radio(
+    "Seleccionar Tipo de Gráfico",
+    options=["Velas", "Líneas"],
+    index=1,
 )
+
 if time_options[time_choice] == "Custom":
     custom_freq = st.sidebar.text_input(
-        "Escribe el intervalo (alias pandas, ej. '2T' para 2 minutos)", value="5min"
+        "Escribe el intervalo (alias pandas, ej. '2T' para 2 minutos)", value="2min"
     )
     freq = custom_freq
 else:
     freq = time_options[time_choice]
-    # Filtrar datos para eliminar outliers
-    q1 = df_asset["adv_price"].quantile(0.25)
-    q3 = df_asset["adv_price"].quantile(0.75)
-    iqr = q3 - q1
-    df_filtered = df_asset[
-        (df_asset["adv_price"] >= (q1 - 1.5 * iqr))
-        & (df_asset["adv_price"] <= (q3 + 1.5 * iqr))
-    ]
 
-    # Separar datos para SELL y BUY
-    df_sell = df_filtered[df_filtered["adv_tradetype"] == "SELL"]
-    df_buy = df_filtered[df_filtered["adv_tradetype"] == "BUY"]
-    # Agregar agrupación OHLC para SELL según el intervalo seleccionado
-    df_ohlc_sell = (
-        df_sell.set_index("timestamp")
-        .resample(freq)
-        .agg({"adv_price": ["mean", "max", "min", "median"]})
+# Filtrar datos para eliminar outliers
+q1 = df_asset["adv_price"].quantile(0.25)
+q3 = df_asset["adv_price"].quantile(0.75)
+iqr = q3 - q1
+df_filtered = df_asset[
+    (df_asset["adv_price"] >= (q1 - 1.5 * iqr))
+    & (df_asset["adv_price"] <= (q3 + 1.5 * iqr))
+]
+
+# Separar datos para SELL y BUY
+df_sell = df_filtered[df_filtered["adv_tradetype"] == "SELL"]
+df_buy = df_filtered[df_filtered["adv_tradetype"] == "BUY"]
+# Agregar agrupación OHLC para SELL según el intervalo seleccionado
+df_ohlc_sell = (
+    df_sell.set_index("timestamp")
+    .resample(freq)
+    .agg({"adv_price": ["mean", "max", "min", "median"]})
+)
+df_ohlc_sell.columns = ["open", "high", "low", "close"]
+df_ohlc_sell.dropna(inplace=True)
+
+# Agregar agrupación OHLC para BUY según el intervalo seleccionado
+df_ohlc_buy = (
+    df_buy.set_index("timestamp")
+    .resample(freq)
+    .agg({"adv_price": ["mean", "max", "min", "median"]})
+)
+df_ohlc_buy.columns = ["open", "high", "low", "close"]
+df_ohlc_buy.dropna(inplace=True)
+
+# Calcular los precios del último periodo para SELL y BUY
+ultimo_precio_sell = df_ohlc_sell["close"].iloc[-1] if not df_ohlc_sell.empty else None
+ultimo_precio_buy = df_ohlc_buy["close"].iloc[-1] if not df_ohlc_buy.empty else None
+
+# Mostrar indicadores globales
+col1, col2 = st.columns(2)
+with col1:
+    st.metric(
+        label="Último Precio SELL",
+        value=f"{ultimo_precio_sell:.2f}" if ultimo_precio_sell else "N/A",
     )
-    df_ohlc_sell.columns = ["open", "high", "low", "close"]
-    df_ohlc_sell.dropna(inplace=True)
-
-    # Agregar agrupación OHLC para BUY según el intervalo seleccionado
-    df_ohlc_buy = (
-        df_buy.set_index("timestamp")
-        .resample(freq)
-        .agg({"adv_price": ["mean", "max", "min", "median"]})
+with col2:
+    st.metric(
+        label="Último Precio BUY",
+        value=f"{ultimo_precio_buy:.2f}" if ultimo_precio_buy else "N/A",
     )
-    df_ohlc_buy.columns = ["open", "high", "low", "close"]
-    df_ohlc_buy.dropna(inplace=True)
 
-    # Calcular los precios del último periodo para SELL y BUY
-    ultimo_precio_sell = df_ohlc_sell["close"].iloc[-1] if not df_ohlc_sell.empty else None
-    ultimo_precio_buy = df_ohlc_buy["close"].iloc[-1] if not df_ohlc_buy.empty else None
+# Gráfico combinado de velas para SELL y BUY
+st.subheader("📊 Gráfico de Precio")
+fig_combined = go.Figure()
 
-    # Mostrar indicadores globales
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Último Precio SELL", value=f"{ultimo_precio_sell:.2f}" if ultimo_precio_sell else "N/A")
-    with col2:
-        st.metric(label="Último Precio BUY", value=f"{ultimo_precio_buy:.2f}" if ultimo_precio_buy else "N/A")
-
-    # Gráfico combinado de velas para SELL y BUY
-    st.subheader("📊 Gráfico de Precio")
-    fig_combined = go.Figure()
-
+if chart_type == "Velas":
     # Agregar velas para SELL
     fig_combined.add_trace(
         go.Candlestick(
@@ -206,16 +224,38 @@ else:
             decreasing=dict(line=dict(width=1, color="darkgreen")),
         )
     )
-
-    fig_combined.update_layout(
-        title=f"Gráfico de Velas (SELL y BUY) - Asset: {asset_selection}, Intervalo: {freq}",
-        xaxis_title="Tiempo",
-        yaxis_title="Precio",
-        autosize=True,
-        height=600,
-        margin=dict(l=10, r=10, t=60, b=10),
+elif chart_type == "Líneas":
+    # Agregar líneas para SELL
+    fig_combined.add_trace(
+        go.Scatter(
+            x=df_ohlc_sell.index,
+            y=df_ohlc_sell["close"],
+            mode="lines",
+            name="Precio de Venta",
+            line=dict(color="red", width=2),
+        )
     )
-    st.plotly_chart(fig_combined, use_container_width=True)
+
+    # Agregar líneas para BUY
+    fig_combined.add_trace(
+        go.Scatter(
+            x=df_ohlc_buy.index,
+            y=df_ohlc_buy["close"],
+            mode="lines",
+            name="Precio de Compra",
+            line=dict(color="green", width=2),
+        )
+    )
+
+fig_combined.update_layout(
+    title=f"Gráfico de Velas (SELL y BUY) - Asset: {asset_selection}, Intervalo: {freq}",
+    xaxis_title="Tiempo",
+    yaxis_title="Precio",
+    autosize=True,
+    height=600,
+    margin=dict(l=10, r=10, t=60, b=10),
+)
+st.plotly_chart(fig_combined, use_container_width=True)
 
 st.subheader("📊 Gráfico de Volumen")
 
