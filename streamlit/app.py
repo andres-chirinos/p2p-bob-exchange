@@ -22,7 +22,7 @@ def cargar_datos():
     if not os.path.exists(ruta_archivo):
         st.info("Descargando dataset desde Kaggle...")
         os.system(
-            "kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet"
+            f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {os.path.dirname(ruta_archivo)}"
         )
 
     # Cargar datos
