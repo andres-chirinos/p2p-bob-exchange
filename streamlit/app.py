@@ -16,7 +16,7 @@ st.markdown(
 @st.cache_data(ttl=300)  # guarda en caché por 5 minutos
 def cargar_datos():
     # Ruta al archivo dentro del dataset descargado
-    ruta_archivo = "advice.parquet"
+    ruta_archivo = os.path.join(os.path.dirname(__file__), "advice.parquet")
 
     # Descargar el dataset (solo si no existe localmente)
     if not os.path.exists(ruta_archivo):
