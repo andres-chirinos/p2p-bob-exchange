@@ -13,21 +13,27 @@ st.markdown(
 
 # === PARTE 1: Cargar dataset desde Kaggle ===
 
-@st.cache_data(ttl=300)  # guarda en caché por 5 minutos
+@st.cache_data(ttl=300)
 def cargar_datos():
-    # Ruta al archivo dentro del dataset descargado
-    ruta_archivo = os.path.join(os.path.dirname(__file__), "advice.parquet")
+    # Usar un directorio de datos accesible (p. ej. usando experimental_user_data_dir en Streamlit Cloud)
+    data_dir = st.experimental_user_data_dir() if hasattr(st, "experimental_user_data_dir") else os.getcwd()
+    os.makedirs(data_dir, exist_ok=True)
+    ruta_archivo = os.path.join(data_dir, "advice.parquet")
 
     # Descargar el dataset (solo si no existe localmente)
     if not os.path.exists(ruta_archivo):
         st.info("Descargando dataset desde Kaggle...")
-        os.system(
-            f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {os.path.dirname(ruta_archivo)}"
-        )
+        comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet -p {data_dir}"
+        os.system(comando)
+        # Descomprimir el archivo si es necesario (si el dataset se descarga como ZIP, por ejemplo)
+        # Aquí asumir que ya descarga el parquet directamente
+
+    if not os.path.exists(ruta_archivo):
+        st.error("No se pudo obtener el archivo advice.parquet.")
+        return None
 
     # Cargar datos
     df = pd.read_parquet(ruta_archivo)
-    # Se eliminan filtrados estáticos para asset, de forma que se pueda elegir en la UI
     expected_columns = {
         "adv_advno": str,
         "adv_classify": "category",
@@ -55,22 +61,12 @@ def cargar_datos():
         "source": "category",
     }
 
-    # Eliminar columnas no esperadas
     df = df[[col for col in df.columns if col in expected_columns]]
-
-    # Se comenta la conversión de tipos para mayor flexibilidad, pero se puede reactivar si es necesario
-    #for col, dtype in expected_columns.items():
-    #    if col in df.columns:
-    #        try:
-    #            df[col] = df[col].astype(dtype)
-    #        except ValueError:
-    #            st.warning(f"Column {col} contains invalid values and will be coerced to NaN.")
-    #            df[col] = pd.to_numeric(df[col], errors='coerce')
-    
-    # Filtrar solo los anuncios de tipo SELL
     return df[df["adv_tradetype"] == "SELL"]
 
 df_all = cargar_datos()
+if df_all is None:
+    st.stop()
 
 # === CONTROLES en la barra lateral ===
 
