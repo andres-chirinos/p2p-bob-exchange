@@ -162,11 +162,5 @@ cython_debug/
 .secrets
 data/*
 !data/.gitkeep
-test/advertiser.parquet
-test/advice.parquet
-test/dataset-metadata.json
-test/raw-data.csv
-test/test.ipynb
-test/trace.ipynb
-test/traceroute_results.csv
-test/trade_methods.parquet
+test*
+scripts*

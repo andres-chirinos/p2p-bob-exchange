@@ -70,9 +70,9 @@ jobs:
           path: ./data/*
           retention-days: ${{ env.GITHUB_ACTIONS_ARTIFACT_DATA_RETENTION_DAYS }}
 
-      - name: Download raw data artifact
+      - name: Zip raw data
         run: |
-          curl -L -o raw-data.zip "${{ steps.upload-raw-data-step.outputs.artifact-url }}"
+          zip -r raw-data.zip ./data/
 
       - name: Upload to Google Drive
         uses: willo32/google-drive-upload-action@v1
