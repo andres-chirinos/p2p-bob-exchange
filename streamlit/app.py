@@ -74,6 +74,22 @@ if df_all is None:
 
 st.sidebar.header("Controles de Visualización")
 
+# === Filtro por rango de tiempo ===
+time_range = st.sidebar.radio(
+    "Filtrar por rango de tiempo",
+    ["Último día", "Última semana", "Último año", "Todo el tiempo"],
+    index=3
+)
+
+if time_range != "Todo el tiempo":
+    now = pd.Timestamp.now()
+    if time_range == "Último día":
+        df_all = df_all[df_all["timestamp"] >= now - pd.Timedelta(days=1)]
+    elif time_range == "Última semana":
+        df_all = df_all[df_all["timestamp"] >= now - pd.Timedelta(weeks=1)]
+    elif time_range == "Último año":
+        df_all = df_all[df_all["timestamp"] >= now - pd.Timedelta(days=365)]
+
 # Filtro por Tipo de Transacción (SELL, BUY o ambos)
 trade_types = ["SELL", "BUY"]
 trade_type_selection = st.sidebar.multiselect(
