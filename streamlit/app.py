@@ -21,54 +21,22 @@ This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exch
 [Repositorio de Github](https://github.com/andres-chirinos/p2p-bob-exchange)
 """
 )
-
-# === Configuración de Kaggle API ===
-
-# Verificar si el archivo .kaggle.json existe
-kaggle_dir = os.path.expanduser("~/.kaggle")
-kaggle_file = os.path.join(kaggle_dir, "kaggle.json")
-
-# if not os.path.exists(kaggle_file):
-#    st.warning(
-#        "El archivo .kaggle.json no existe. Por favor, proporcione sus credenciales de Kaggle."
-#    )
-#    kaggle_username = st.text_input("Ingrese su nombre de usuario de Kaggle")
-#    kaggle_key = st.text_input("Ingrese su clave de API de Kaggle", type="password")
-#
-#    if kaggle_username and kaggle_key:
-#        os.makedirs(kaggle_dir, exist_ok=True)
-#        with open(kaggle_file, "w") as f:
-#            f.write(f'{{"username":"{kaggle_username}","key":"{kaggle_key}"}}')
-#        os.chmod(kaggle_file, 0o600)  # Asegurar permisos correctos
-#        st.success("Archivo .kaggle.json creado exitosamente.")
-
 # === PARTE 1: Cargar dataset desde Kaggle ===
-
-
 @st.cache_data(ttl=1800)
 def cargar_datos():
-    # Usar un directorio de datos accesible (p. ej. usando experimental_user_data_dir en Streamlit Cloud)
-    data_dir = (
-        st.experimental_user_data_dir()
-        if hasattr(st, "experimental_user_data_dir")
-        else os.getcwd()
-    )
+    # Definir directorio de datos (usando experimental_user_data_dir en Streamlit Cloud o cwd)
+    data_dir = st.experimental_user_data_dir() if hasattr(st, "experimental_user_data_dir") else os.getcwd()
     os.makedirs(data_dir, exist_ok=True)
     ruta_archivo = os.path.join(data_dir, "advice.parquet")
 
-    # Descargar el dataset (solo si no existe localmente)
-    #if not os.path.exists(ruta_archivo):
-        # st.info("Descargando dataset desde Kaggle...")
+    # Descargar el dataset (se fuerza la descarga con --force y --quiet)
     comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet --path {data_dir} --force --quiet"
     os.system(comando)
-        # Descomprimir el archivo si es necesario (si el dataset se descarga como ZIP, por ejemplo)
-        # Aquí asumir que ya descarga el parquet directamente
 
     if not os.path.exists(ruta_archivo):
-        # st.error("No se pudo obtener el archivo advice.parquet.")
+        st.error("No se pudo obtener el archivo advice.parquet.")
         return None
 
-    # Cargar datos
     df = pd.read_parquet(ruta_archivo)
     expected_columns = {
         "advno": str,
@@ -96,15 +64,17 @@ def cargar_datos():
         "timestamp": lambda col: pd.to_datetime(col, unit="s"),
         "source": "category",
     }
-
+    # Filtrar únicamente las columnas que se esperan
     df = df[[col for col in df.columns if col in expected_columns]]
     return df
 
-
 df_all = cargar_datos()
+if df_all is None:
+    st.stop()
+
 st.sidebar.header("Controles de Visualización")
 
-# Selección de tipo de transacción (SELL, BUY o ambos)
+# Filtro por Tipo de Transacción (SELL, BUY o ambos)
 trade_types = ["SELL", "BUY"]
 trade_type_selection = st.sidebar.multiselect(
     "Seleccionar Tipo de Transacción",
@@ -137,13 +107,6 @@ time_options = {
 }
 time_choice = st.sidebar.selectbox(
     "Intervalo de tiempo", options=list(time_options.keys()), index=2
-)   
-
-# Selección del tipo de gráfico
-chart_type = st.sidebar.radio(
-    "Seleccionar Tipo de Gráfico",
-    options=["Velas", "Líneas"],
-    index=1,
 )
 
 if time_options[time_choice] == "Custom":
@@ -154,37 +117,32 @@ if time_options[time_choice] == "Custom":
 else:
     freq = time_options[time_choice]
 
-# Filtrar datos para eliminar outliers
+# Filtrar outliers en precio
 q1 = df_asset["price"].quantile(0.25)
 q3 = df_asset["price"].quantile(0.75)
 iqr = q3 - q1
 df_filtered = df_asset[
-    (df_asset["price"] >= (q1 - 1.5 * iqr))
-    & (df_asset["price"] <= (q3 + 1.5 * iqr))
+    (df_asset["price"] >= (q1 - 1.5 * iqr)) &
+    (df_asset["price"] <= (q3 + 1.5 * iqr))
 ]
+
+# Función auxiliar para calcular agrupación OHLC
+def obtener_ohlc(df, freq):
+    ohlc = (
+        df.set_index("timestamp")
+          .resample(freq)
+          .agg({"price": ["mean", "max", "min", "median"]})
+    )
+    ohlc.columns = ["open", "high", "low", "close"]
+    return ohlc.dropna()
 
 # Separar datos para SELL y BUY
 df_sell = df_filtered[df_filtered["tradetype"] == "SELL"]
 df_buy = df_filtered[df_filtered["tradetype"] == "BUY"]
-# Agregar agrupación OHLC para SELL según el intervalo seleccionado
-df_ohlc_sell = (
-    df_sell.set_index("timestamp")
-    .resample(freq)
-    .agg({"price": ["mean", "max", "min", "median"]})
-)
-df_ohlc_sell.columns = ["open", "high", "low", "close"]
-df_ohlc_sell.dropna(inplace=True)
 
-# Agregar agrupación OHLC para BUY según el intervalo seleccionado
-df_ohlc_buy = (
-    df_buy.set_index("timestamp")
-    .resample(freq)
-    .agg({"price": ["mean", "max", "min", "median"]})
-)
-df_ohlc_buy.columns = ["open", "high", "low", "close"]
-df_ohlc_buy.dropna(inplace=True)
+df_ohlc_sell = obtener_ohlc(df_sell, freq)
+df_ohlc_buy = obtener_ohlc(df_buy, freq)
 
-# Calcular los precios del último periodo para SELL y BUY
 ultimo_precio_sell = df_ohlc_sell["close"].iloc[-1] if not df_ohlc_sell.empty else None
 ultimo_precio_buy = df_ohlc_buy["close"].iloc[-1] if not df_ohlc_buy.empty else None
 
@@ -193,20 +151,25 @@ col1, col2 = st.columns(2)
 with col1:
     st.metric(
         label="Último Precio SELL",
-        value=f"{ultimo_precio_sell:.2f}" if ultimo_precio_sell else "N/A",
+        value=f"{ultimo_precio_sell:.2f}" if ultimo_precio_sell is not None else "N/A",
     )
 with col2:
     st.metric(
         label="Último Precio BUY",
-        value=f"{ultimo_precio_buy:.2f}" if ultimo_precio_buy else "N/A",
+        value=f"{ultimo_precio_buy:.2f}" if ultimo_precio_buy is not None else "N/A",
     )
 
-# Gráfico combinado de velas para SELL y BUY
 st.subheader("📊 Gráfico de Precio")
+chart_type = st.sidebar.radio(
+    "Seleccionar Tipo de Gráfico",
+    options=["Velas", "Líneas"],
+    index=1,
+)
+
 fig_combined = go.Figure()
 
 if chart_type == "Velas":
-    # Agregar velas para SELL
+    # Velas para SELL
     fig_combined.add_trace(
         go.Candlestick(
             x=df_ohlc_sell.index,
@@ -219,8 +182,7 @@ if chart_type == "Velas":
             decreasing=dict(line=dict(width=1, color="darkred")),
         )
     )
-
-    # Agregar velas para BUY
+    # Velas para BUY
     fig_combined.add_trace(
         go.Candlestick(
             x=df_ohlc_buy.index,
@@ -234,7 +196,7 @@ if chart_type == "Velas":
         )
     )
 elif chart_type == "Líneas":
-    # Agregar líneas para SELL
+    # Línea para SELL
     fig_combined.add_trace(
         go.Scatter(
             x=df_ohlc_sell.index,
@@ -244,8 +206,7 @@ elif chart_type == "Líneas":
             line=dict(color="red", width=2),
         )
     )
-
-    # Agregar líneas para BUY
+    # Línea para BUY
     fig_combined.add_trace(
         go.Scatter(
             x=df_ohlc_buy.index,
@@ -267,19 +228,16 @@ fig_combined.update_layout(
 st.plotly_chart(fig_combined, use_container_width=True)
 
 st.subheader("📊 Gráfico de Volumen")
-
-# Calcular volumen de compra y venta con resampleo según el intervalo seleccionado
 df_volume = (
     df_filtered.set_index("timestamp")
-    .groupby("tradetype")["tradablequantity"]
-    .resample(freq)
-    .mean()
-    .reset_index()
-    .pivot(index="timestamp", columns="tradetype", values="tradablequantity")
-    .fillna(0)
+               .groupby("tradetype")["tradablequantity"]
+               .resample(freq)
+               .mean()
+               .reset_index()
+               .pivot(index="timestamp", columns="tradetype", values="tradablequantity")
+               .fillna(0)
 )
 
-# Crear gráfico de barras apiladas para volumen
 fig_volume = go.Figure()
 if "BUY" in df_volume.columns:
     fig_volume.add_trace(
