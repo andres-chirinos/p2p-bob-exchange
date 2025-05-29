@@ -45,7 +45,7 @@ kaggle_file = os.path.join(kaggle_dir, "kaggle.json")
 # === PARTE 1: Cargar dataset desde Kaggle ===
 
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=1800)
 def cargar_datos():
     # Usar un directorio de datos accesible (p. ej. usando experimental_user_data_dir en Streamlit Cloud)
     data_dir = (
