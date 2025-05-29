@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import gc
 import plotly.graph_objects as go
 
 # Configuración básica del dashboard
@@ -78,7 +79,7 @@ st.sidebar.header("Controles de Visualización")
 time_range = st.sidebar.radio(
     "Filtrar por rango de tiempo",
     ["Último día", "Última semana", "Último año", "Todo el tiempo"],
-    index=3
+    index=1
 )
 
 if time_range != "Todo el tiempo":
@@ -100,7 +101,7 @@ trade_type_selection = st.sidebar.multiselect(
 if trade_type_selection:
     df_all = df_all[df_all["tradetype"].isin(trade_type_selection)]
 
-# Selección de Asset
+# Selección de Asset y cálculo de df_asset
 assets = sorted(df_all["asset"].dropna().unique())
 asset_selection = st.sidebar.selectbox(
     "Seleccionar Asset",
@@ -108,6 +109,10 @@ asset_selection = st.sidebar.selectbox(
     index=assets.index("USDT") if "USDT" in assets else 0,
 )
 df_asset = df_all[df_all["asset"] == asset_selection]
+
+# Una vez calculado df_asset, eliminar el df_all para liberar RAM
+del df_all
+gc.collect()
 
 # Selección de frecuencia para resampleo
 time_options = {
