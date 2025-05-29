@@ -71,28 +71,28 @@ def cargar_datos():
     # Cargar datos
     df = pd.read_parquet(ruta_archivo)
     expected_columns = {
-        "adv_advno": str,
-        "adv_classify": "category",
-        "adv_tradetype": "category",
-        "adv_asset": "category",
-        "adv_fiatunit": "category",
-        "adv_price": float,
-        "adv_surplusamount": float,
-        "adv_tradablequantity": float,
-        "adv_maxsingletransamount": float,
-        "adv_minsingletransamount": float,
-        "adv_paytimelimit": int,
-        "adv_takeradditionalkycrequired": bool,
-        "adv_assetscale": int,
-        "adv_fiatscale": int,
-        "adv_pricescale": int,
-        "adv_fiatsymbol": "category",
-        "adv_istradable": bool,
-        "adv_dynamicmaxsingletransamount": float,
-        "adv_minsingletransquantity": float,
-        "adv_maxsingletransquantity": float,
-        "adv_dynamicmaxsingletransquantity": float,
-        "adv_issafepayment": bool,
+        "advno": str,
+        "classify": "category",
+        "tradetype": "category",
+        "asset": "category",
+        "fiatunit": "category",
+        "price": float,
+        "surplusamount": float,
+        "tradablequantity": float,
+        "maxsingletransamount": float,
+        "minsingletransamount": float,
+        "paytimelimit": int,
+        "takeradditionalkycrequired": bool,
+        "assetscale": int,
+        "fiatscale": int,
+        "pricescale": int,
+        "fiatsymbol": "category",
+        "istradable": bool,
+        "dynamicmaxsingletransamount": float,
+        "minsingletransquantity": float,
+        "maxsingletransquantity": float,
+        "dynamicmaxsingletransquantity": float,
+        "issafepayment": bool,
         "timestamp": lambda col: pd.to_datetime(col, unit="s"),
         "source": "category",
     }
@@ -112,16 +112,16 @@ trade_type_selection = st.sidebar.multiselect(
     default=trade_types,
 )
 if trade_type_selection:
-    df_all = df_all[df_all["adv_tradetype"].isin(trade_type_selection)]
+    df_all = df_all[df_all["tradetype"].isin(trade_type_selection)]
 
 # Selección de Asset
-assets = sorted(df_all["adv_asset"].dropna().unique())
+assets = sorted(df_all["asset"].dropna().unique())
 asset_selection = st.sidebar.selectbox(
     "Seleccionar Asset",
     options=assets,
     index=assets.index("USDT") if "USDT" in assets else 0,
 )
-df_asset = df_all[df_all["adv_asset"] == asset_selection]
+df_asset = df_all[df_all["asset"] == asset_selection]
 
 # Selección de frecuencia para resampleo
 time_options = {
@@ -155,22 +155,22 @@ else:
     freq = time_options[time_choice]
 
 # Filtrar datos para eliminar outliers
-q1 = df_asset["adv_price"].quantile(0.25)
-q3 = df_asset["adv_price"].quantile(0.75)
+q1 = df_asset["price"].quantile(0.25)
+q3 = df_asset["price"].quantile(0.75)
 iqr = q3 - q1
 df_filtered = df_asset[
-    (df_asset["adv_price"] >= (q1 - 1.5 * iqr))
-    & (df_asset["adv_price"] <= (q3 + 1.5 * iqr))
+    (df_asset["price"] >= (q1 - 1.5 * iqr))
+    & (df_asset["price"] <= (q3 + 1.5 * iqr))
 ]
 
 # Separar datos para SELL y BUY
-df_sell = df_filtered[df_filtered["adv_tradetype"] == "SELL"]
-df_buy = df_filtered[df_filtered["adv_tradetype"] == "BUY"]
+df_sell = df_filtered[df_filtered["tradetype"] == "SELL"]
+df_buy = df_filtered[df_filtered["tradetype"] == "BUY"]
 # Agregar agrupación OHLC para SELL según el intervalo seleccionado
 df_ohlc_sell = (
     df_sell.set_index("timestamp")
     .resample(freq)
-    .agg({"adv_price": ["mean", "max", "min", "median"]})
+    .agg({"price": ["mean", "max", "min", "median"]})
 )
 df_ohlc_sell.columns = ["open", "high", "low", "close"]
 df_ohlc_sell.dropna(inplace=True)
@@ -179,7 +179,7 @@ df_ohlc_sell.dropna(inplace=True)
 df_ohlc_buy = (
     df_buy.set_index("timestamp")
     .resample(freq)
-    .agg({"adv_price": ["mean", "max", "min", "median"]})
+    .agg({"price": ["mean", "max", "min", "median"]})
 )
 df_ohlc_buy.columns = ["open", "high", "low", "close"]
 df_ohlc_buy.dropna(inplace=True)
@@ -271,11 +271,11 @@ st.subheader("📊 Gráfico de Volumen")
 # Calcular volumen de compra y venta con resampleo según el intervalo seleccionado
 df_volume = (
     df_filtered.set_index("timestamp")
-    .groupby("adv_tradetype")["adv_tradablequantity"]
+    .groupby("tradetype")["tradablequantity"]
     .resample(freq)
     .mean()
     .reset_index()
-    .pivot(index="timestamp", columns="adv_tradetype", values="adv_tradablequantity")
+    .pivot(index="timestamp", columns="tradetype", values="tradablequantity")
     .fillna(0)
 )
 
