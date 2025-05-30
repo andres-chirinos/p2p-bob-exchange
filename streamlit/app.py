@@ -339,5 +339,68 @@ fig_volume.update_layout(
 )
 st.plotly_chart(fig_volume, use_container_width=True)
 
+# Después de calcular df_ohlc_sell y df_ohlc_buy...
+# Agregar un control para la ventana de la media móvil
+window_size = st.sidebar.slider("Ventana de Media Móvil (Precio Resiliente)", min_value=3, max_value=50, value=10, step=1)
+
+# Calcular la media móvil del precio ponderado para SELL y BUY
+df_ma_sell = df_ohlc_sell["weighted"].rolling(window=window_size).mean()
+df_ma_buy = df_ohlc_buy["weighted"].rolling(window=window_size).mean()
+
+st.subheader("📊 Precio Resiliente (Media Móvil)")
+fig_resilient = go.Figure()
+
+# Agregar línea de precio original para SELL
+fig_resilient.add_trace(
+    go.Scatter(
+        x = df_ohlc_sell.index,
+        y = df_ohlc_sell["weighted"],
+        mode = "lines",
+        name = "Precio Ponderado SELL",
+        line = dict(color="red", width=1, dash="dot"),
+    )
+)
+# Agregar media móvil para SELL
+fig_resilient.add_trace(
+    go.Scatter(
+        x = df_ma_sell.index,
+        y = df_ma_sell,
+        mode = "lines",
+        name = f"Media Móvil SELL ({window_size} periodos)",
+        line = dict(color="red", width=3)
+    )
+)
+
+# Agregar línea de precio original para BUY
+fig_resilient.add_trace(
+    go.Scatter(
+        x = df_ohlc_buy.index,
+        y = df_ohlc_buy["weighted"],
+        mode = "lines",
+        name = "Precio Ponderado BUY",
+        line = dict(color="green", width=1, dash="dot"),
+    )
+)
+# Agregar media móvil para BUY
+fig_resilient.add_trace(
+    go.Scatter(
+        x = df_ma_buy.index,
+        y = df_ma_buy,
+        mode = "lines",
+        name = f"Media Móvil BUY ({window_size} periodos)",
+        line = dict(color="green", width=3)
+    )
+)
+
+fig_resilient.update_layout(
+    title=f"Precio Resiliente (Media Móvil) - Asset: {asset_selection}, Intervalo: {freq}",
+    xaxis_title="Tiempo",
+    yaxis_title="Precio",
+    autosize=True,
+    height=600,
+    margin=dict(l=10, r=10, t=60, b=10),
+)
+st.plotly_chart(fig_resilient, use_container_width=True)
+
 #st.subheader("Datos Filtrados")
 #st.dataframe(df_filtered)
