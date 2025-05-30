@@ -339,5 +339,5 @@ fig_volume.update_layout(
 )
 st.plotly_chart(fig_volume, use_container_width=True)
 
-st.subheader("Datos Filtrados")
-st.dataframe(df_filtered)
+#st.subheader("Datos Filtrados")
+#st.dataframe(df_filtered)
