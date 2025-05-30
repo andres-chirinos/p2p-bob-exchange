@@ -4,6 +4,7 @@ import os
 import gc
 import plotly.graph_objects as go
 import numpy as np
+from scipy.stats import beta as beta_dist
 
 # Configuración básica del dashboard
 st.set_page_config(
@@ -150,11 +151,14 @@ else:
 q1 = df_asset["price"].quantile(0.25)
 q3 = df_asset["price"].quantile(0.75)
 iqr = q3 - q1
-df_filtered = df_asset[
-    (df_asset["price"] >= (q1 - 1.5 * iqr)) & (df_asset["price"] <= (q3 + 1.5 * iqr))
-]
-
-def ohlc_weighted(x, beta=1.0, order_type="SELL"):
+df_filtered = df_asset
+#df_filtered = df_asset[
+#    (df_asset["price"] >= (q1 - 1.5 * iqr)) & (df_asset["price"] <= (q3 + 1.5 * iqr))
+#]
+def ohlc_weighted(x, 
+                  alpha_sell=5, beta_sell=1,   # Parámetros para SELL: favorecer precios altos
+                  alpha_buy=1, beta_buy=5,     # Parámetros para BUY: favorecer precios bajos
+                  order_type="SELL"):
     if x.empty or x["price"].dropna().empty:
         return pd.Series({
             "open": np.nan,
@@ -168,12 +172,18 @@ def ohlc_weighted(x, beta=1.0, order_type="SELL"):
     close_val = x["price"].iloc[-1]
     high_val = x["price"].max()
     low_val = x["price"].min()
-    # Para ofertas de venta, se busca vender caro (priorizar precios altos)
-    # Para ofertas de compra, se busca comprar barato (priorizar precios bajos)
-    if order_type.upper() != "SELL":
-        weights = np.exp(-beta * (high_val - x["price"])) * x["tradablequantity"]
+    # Normalización de los precios al rango [0,1]
+    if high_val != low_val:
+        normalized = (x["price"] - low_val) / (high_val - low_val)
+    else:
+        normalized = np.ones_like(x["price"])
+    # Calcular pesos usando la distribución beta
+    if order_type.upper() == "SELL":
+        # Para SELL, se favorecen los precios altos (normalized cerca de 1)
+        weights = beta_dist.pdf(normalized, a=alpha_sell, b=beta_sell) * x["tradablequantity"]
     else:  # BUY
-        weights = np.exp(-beta * (x["price"] - low_val)) * x["tradablequantity"]
+        # Para BUY, se favorecen los precios bajos (normalized cerca de 0)
+        weights = beta_dist.pdf(normalized, a=alpha_buy, b=beta_buy) * x["tradablequantity"]
     weighted_price = (x["price"] * weights).sum() / weights.sum() if weights.sum() != 0 else np.nan
     return pd.Series({
         "open": open_val,
@@ -184,12 +194,15 @@ def ohlc_weighted(x, beta=1.0, order_type="SELL"):
     })
 
 # Ejemplo de uso en la función de resampleo:
-def obtener_ohlc(df, freq, beta=5.0, order_type="SELL"):
+def obtener_ohlc(df, freq, 
+                 alpha_sell=1, beta_sell=5.5, 
+                 alpha_buy=5.5, beta_buy=1, 
+                 order_type="SELL"):
     # Se espera que 'df' contenga, además de 'price' y 'timestamp', la columna 'tradablequantity'
     resampled = (
         df.set_index("timestamp")
           .resample(freq)
-          .apply(lambda x: ohlc_weighted(x, beta=beta, order_type=order_type))
+          .apply(lambda x: ohlc_weighted(x, alpha_sell, beta_sell, alpha_buy, beta_buy, order_type=order_type))
     )
     return resampled.dropna()
 
@@ -198,8 +211,8 @@ def obtener_ohlc(df, freq, beta=5.0, order_type="SELL"):
 df_sell = df_filtered[df_filtered["tradetype"] == "SELL"]
 df_buy = df_filtered[df_filtered["tradetype"] == "BUY"]
 
-df_ohlc_sell = obtener_ohlc(df_sell, freq, beta=5.0, order_type="SELL")
-df_ohlc_buy = obtener_ohlc(df_buy, freq, beta=5.0, order_type="BUY")
+df_ohlc_sell = obtener_ohlc(df_sell, freq, order_type="SELL")
+df_ohlc_buy = obtener_ohlc(df_buy, freq, order_type="BUY")
 
 ultimo_precio_sell = df_ohlc_sell["weighted"].iloc[-1] if not df_ohlc_sell.empty else None
 ultimo_precio_buy = df_ohlc_buy["weighted"].iloc[-1] if not df_ohlc_buy.empty else None
