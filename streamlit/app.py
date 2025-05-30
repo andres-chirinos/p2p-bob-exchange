@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import gc
 import plotly.graph_objects as go
+import numpy as np
 
 # Configuración básica del dashboard
 st.set_page_config(
@@ -11,7 +12,7 @@ st.set_page_config(
 
 st.title("📈 Peer-to-Peer Boliviano (BOB) Exchange Data Dashboard")
 st.markdown(
-"""# Peer-to-Peer Boliviano (BOB) Exchange Data
+    """# Peer-to-Peer Boliviano (BOB) Exchange Data
 _Github Actions ETL Pipeline_
 
 This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exchange Data. The data is collected from various sources and transformed into a clean format for analysis. The pipeline includes data extraction, transformation, and loading processes, along with data quality checks.
@@ -22,17 +23,23 @@ This project contains the ETL pipeline for the Peer-to-Peer Boliviano (BOB) Exch
 [Repositorio de Github](https://github.com/andres-chirinos/p2p-bob-exchange)
 """
 )
+
+
 # === PARTE 1: Cargar dataset desde Kaggle ===
 @st.cache_data(ttl=1800)
 def cargar_datos():
     # Definir directorio de datos (usando experimental_user_data_dir en Streamlit Cloud o cwd)
-    data_dir = st.experimental_user_data_dir() if hasattr(st, "experimental_user_data_dir") else os.getcwd()
+    data_dir = (
+        st.experimental_user_data_dir()
+        if hasattr(st, "experimental_user_data_dir")
+        else os.getcwd()
+    )
     os.makedirs(data_dir, exist_ok=True)
     ruta_archivo = os.path.join(data_dir, "advice.parquet")
-
-    # Descargar el dataset (se fuerza la descarga con --force y --quiet)
-    comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet --path {data_dir} --force --quiet"
-    os.system(comando)
+    if not os.path.exists(ruta_archivo):
+        # Descargar el dataset (se fuerza la descarga con --force y --quiet)
+        comando = f"kaggle datasets download andreschirinos/p2p-bob-exchange --file advice.parquet --path {data_dir} --force --quiet"
+        os.system(comando)
 
     if not os.path.exists(ruta_archivo):
         st.error("No se pudo obtener el archivo advice.parquet.")
@@ -69,6 +76,7 @@ def cargar_datos():
     df = df[[col for col in df.columns if col in expected_columns]]
     return df
 
+
 df_all = cargar_datos()
 if df_all is None:
     st.stop()
@@ -79,7 +87,7 @@ st.sidebar.header("Controles de Visualización")
 time_range = st.sidebar.radio(
     "Filtrar por rango de tiempo",
     ["Último día", "Última semana", "Último año", "Todo el tiempo"],
-    index=1
+    index=1,
 )
 
 if time_range != "Todo el tiempo":
@@ -95,7 +103,7 @@ if time_range != "Todo el tiempo":
 trade_types = ["SELL", "BUY"]
 trade_type_selection = st.sidebar.multiselect(
     "Seleccionar Tipo de Transacción",
-    options=trade_types, 
+    options=trade_types,
     default=trade_types,
 )
 if trade_type_selection:
@@ -143,29 +151,58 @@ q1 = df_asset["price"].quantile(0.25)
 q3 = df_asset["price"].quantile(0.75)
 iqr = q3 - q1
 df_filtered = df_asset[
-    (df_asset["price"] >= (q1 - 1.5 * iqr)) &
-    (df_asset["price"] <= (q3 + 1.5 * iqr))
+    (df_asset["price"] >= (q1 - 1.5 * iqr)) & (df_asset["price"] <= (q3 + 1.5 * iqr))
 ]
 
-# Función auxiliar para calcular agrupación OHLC
-def obtener_ohlc(df, freq):
-    ohlc = (
+def ohlc_weighted(x, beta=1.0, order_type="SELL"):
+    if x.empty or x["price"].dropna().empty:
+        return pd.Series({
+            "open": np.nan,
+            "high": np.nan,
+            "low": np.nan,
+            "close": np.nan,
+            "weighted": np.nan
+        })
+    # Valores reales de apertura y cierre
+    open_val = x["price"].iloc[0]
+    close_val = x["price"].iloc[-1]
+    high_val = x["price"].max()
+    low_val = x["price"].min()
+    # Para ofertas de venta, se busca vender caro (priorizar precios altos)
+    # Para ofertas de compra, se busca comprar barato (priorizar precios bajos)
+    if order_type.upper() != "SELL":
+        weights = np.exp(-beta * (high_val - x["price"])) * x["tradablequantity"]
+    else:  # BUY
+        weights = np.exp(-beta * (x["price"] - low_val)) * x["tradablequantity"]
+    weighted_price = (x["price"] * weights).sum() / weights.sum() if weights.sum() != 0 else np.nan
+    return pd.Series({
+        "open": open_val,
+        "high": high_val,
+        "low": low_val,
+        "close": close_val,
+        "weighted": weighted_price,
+    })
+
+# Ejemplo de uso en la función de resampleo:
+def obtener_ohlc(df, freq, beta=5.0, order_type="SELL"):
+    # Se espera que 'df' contenga, además de 'price' y 'timestamp', la columna 'tradablequantity'
+    resampled = (
         df.set_index("timestamp")
           .resample(freq)
-          .agg({"price": ["mean", "max", "min", "median"]})
+          .apply(lambda x: ohlc_weighted(x, beta=beta, order_type=order_type))
     )
-    ohlc.columns = ["open", "high", "low", "close"]
-    return ohlc.dropna()
+    return resampled.dropna()
+
 
 # Separar datos para SELL y BUY
 df_sell = df_filtered[df_filtered["tradetype"] == "SELL"]
 df_buy = df_filtered[df_filtered["tradetype"] == "BUY"]
 
-df_ohlc_sell = obtener_ohlc(df_sell, freq)
-df_ohlc_buy = obtener_ohlc(df_buy, freq)
+df_ohlc_sell = obtener_ohlc(df_sell, freq, beta=5.0, order_type="SELL")
+df_ohlc_buy = obtener_ohlc(df_buy, freq, beta=5.0, order_type="BUY")
 
-ultimo_precio_sell = df_ohlc_sell["close"].iloc[-1] if not df_ohlc_sell.empty else None
-ultimo_precio_buy = df_ohlc_buy["close"].iloc[-1] if not df_ohlc_buy.empty else None
+ultimo_precio_sell = df_ohlc_sell["weighted"].iloc[-1] if not df_ohlc_sell.empty else None
+ultimo_precio_buy = df_ohlc_buy["weighted"].iloc[-1] if not df_ohlc_buy.empty else None
 
 # Mostrar indicadores globales
 col1, col2 = st.columns(2)
@@ -197,7 +234,7 @@ if chart_type == "Velas":
             open=df_ohlc_sell["open"],
             high=df_ohlc_sell["high"],
             low=df_ohlc_sell["low"],
-            close=df_ohlc_sell["close"],
+            close=df_ohlc_sell["weighted"],
             name="Precio de Venta",
             increasing=dict(line=dict(width=1, color="red")),
             decreasing=dict(line=dict(width=1, color="darkred")),
@@ -210,7 +247,7 @@ if chart_type == "Velas":
             open=df_ohlc_buy["open"],
             high=df_ohlc_buy["high"],
             low=df_ohlc_buy["low"],
-            close=df_ohlc_buy["close"],
+            close=df_ohlc_buy["weighted"],
             name="Precio de Compra",
             increasing=dict(line=dict(width=1, color="green")),
             decreasing=dict(line=dict(width=1, color="darkgreen")),
@@ -221,7 +258,7 @@ elif chart_type == "Líneas":
     fig_combined.add_trace(
         go.Scatter(
             x=df_ohlc_sell.index,
-            y=df_ohlc_sell["close"],
+            y=df_ohlc_sell["weighted"],
             mode="lines",
             name="Precio de Venta",
             line=dict(color="red", width=2),
@@ -231,7 +268,7 @@ elif chart_type == "Líneas":
     fig_combined.add_trace(
         go.Scatter(
             x=df_ohlc_buy.index,
-            y=df_ohlc_buy["close"],
+            y=df_ohlc_buy["weighted"],
             mode="lines",
             name="Precio de Compra",
             line=dict(color="green", width=2),
@@ -251,12 +288,12 @@ st.plotly_chart(fig_combined, use_container_width=True)
 st.subheader("📊 Gráfico de Volumen")
 df_volume = (
     df_filtered.set_index("timestamp")
-               .groupby("tradetype")["tradablequantity"]
-               .resample(freq)
-               .mean()
-               .reset_index()
-               .pivot(index="timestamp", columns="tradetype", values="tradablequantity")
-               .fillna(0)
+    .groupby("tradetype")["tradablequantity"]
+    .resample(freq)
+    .mean()
+    .reset_index()
+    .pivot(index="timestamp", columns="tradetype", values="tradablequantity")
+    .fillna(0)
 )
 
 fig_volume = go.Figure()
@@ -288,3 +325,6 @@ fig_volume.update_layout(
     margin=dict(l=10, r=10, t=60, b=10),
 )
 st.plotly_chart(fig_volume, use_container_width=True)
+
+st.subheader("Datos Filtrados")
+st.dataframe(df_filtered)
