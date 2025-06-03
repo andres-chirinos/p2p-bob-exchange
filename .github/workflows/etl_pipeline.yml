@@ -165,7 +165,7 @@ jobs:
 
       - name: Run Load Notebook
         run: |
-          papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python --parameters_file config.yml --parameters "data_dir=data" "output_dir=output"
+          papermill notebooks/03_load.ipynb output/03_load_out.ipynb --kernel python --parameters_file config.yml
 
       - name: Upload Load Notebook
         if: ${{ failure() }}
