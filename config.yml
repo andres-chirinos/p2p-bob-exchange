@@ -117,6 +117,12 @@ kaggle:
     - path: "trade_methods.parquet"
       description: "Trade methods data"
       name: trade_methods
+    - path: "dashboard_summary.parquet"
+      description: "Dashboard summary data"
+      name: dashboard_summary
+    - path: "dashboard_summary_1h.parquet"
+      description: "Dashboard summary data aggregated hourly"
+      name: dashboard_summary_1h
   keywords: *keywords
   name: "p2p-bob-exchange"
   homepage: "https://sociest.org"
