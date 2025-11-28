@@ -32,6 +32,17 @@ def load_summary_data():
         # Obtener ruta del archivo de resumen
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_dir = os.path.dirname(current_dir)
+        #añadele el descargar el archivo kaggle datasets download andreschirinos/p2p-bob-exchange --file dashboard_summary.parquet --path {data_dir} --force --quiet
+
+        os.makedirs(os.path.join(project_dir, "data"), exist_ok=True)
+        # Ruta del archivo parquet
+        data_dir = os.path.join(project_dir, "data")
+        os.system(f"kaggle datasets download andreschirinos/p2p-bob-exchange --file dashboard_summary.parquet --path {data_dir} --force --quiet")
+        os.system(f"unzip -o {os.path.join(data_dir, 'dashboard_summary.parquet.zip')} -d {data_dir}")
+        #os.system(f"kaggle datasets download andreschirinos/p2p-bob-exchange --file dashboard_summary_1h.parquet --path {data_dir} --force --quiet")
+        #os.system(f"unzip -o {os.path.join(data_dir, 'dashboard_summary_1h.parquet.zip')} -d {data_dir}")
+
+
 
         # Intentar cargar el resumen de 1 hora primero (más ligero)
         data_path = os.path.join(project_dir, "data", "dashboard_summary_1h.parquet")
